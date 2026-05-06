@@ -39,7 +39,7 @@ class PostNotFound(Exception):
     pass
 
 
-
+# 🔴 EXCEPTION HANDLER
 @app.exception_handler(PostNotFound)
 async def post_not_found_handler(request: Request, exc: PostNotFound):
     return JSONResponse(

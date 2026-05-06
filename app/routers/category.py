@@ -1,59 +1,95 @@
-from fastapi import APIRouter, HTTPException
-from app.schemas import Category
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List
 
-router = APIRouter(prefix="/categories", tags=["Categories"])
+from .. import models, schemas
+from ..database import get_db
 
-categories_db = []
-category_id = 1
+router = APIRouter(
+    prefix="/categories",
+    tags=["Categories"]
+)
 
+# ─── CREATE ─────────────────────────────
+@router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    response_model=schemas.CategoryResponse
+)
+def create_category(category: schemas.CategoryCreate, db: Session = Depends(get_db)):
+    new_category = models.Category(**category.dict())
 
-# CREATE
-@router.post("/")
-def create_category(category: Category):
-    global category_id
+    db.add(new_category)
+    db.commit()
+    db.refresh(new_category)
 
-    cat = category.dict()
-    cat["id"] = category_id
-    category_id += 1
-
-    categories_db.append(cat)
-    return cat
-
-
-# READ ALL
-@router.get("/")
-def get_categories():
-    return categories_db
-
-
-# READ ONE
-@router.get("/{cat_id}")
-def get_category(cat_id: int):
-    for c in categories_db:
-        if c["id"] == cat_id:
-            return c
-    raise HTTPException(status_code=404, detail="Topilmadi")
+    return new_category
 
 
-# UPDATE
-@router.put("/{cat_id}")
-def update_category(cat_id: int, category: Category):
-    for i, c in enumerate(categories_db):
-        if c["id"] == cat_id:
-            updated = category.dict()
-            updated["id"] = cat_id
-            categories_db[i] = updated
-            return updated
-
-    raise HTTPException(status_code=404, detail="Topilmadi")
+# ─── READ ALL ───────────────────────────
+@router.get(
+    "/",
+    response_model=List[schemas.CategoryResponse]
+)
+def get_categories(db: Session = Depends(get_db)):
+    return db.query(models.Category).all()
 
 
-# DELETE
-@router.delete("/{cat_id}")
-def delete_category(cat_id: int):
-    for i, c in enumerate(categories_db):
-        if c["id"] == cat_id:
-            categories_db.pop(i)
-            return {"xabar": "O'chirildi"}
+# ─── READ ONE ───────────────────────────
+@router.get(
+    "/{category_id}",
+    response_model=schemas.CategoryResponse
+)
+def get_category(category_id: int, db: Session = Depends(get_db)):
+    category = db.query(models.Category).filter(models.Category.id == category_id).first()
 
-    raise HTTPException(status_code=404, detail="Topilmadi")
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category topilmadi"
+        )
+
+    return category
+
+
+# ─── UPDATE ─────────────────────────────
+@router.put(
+    "/{category_id}",
+    response_model=schemas.CategoryResponse
+)
+def update_category(
+    category_id: int,
+    updated_category: schemas.CategoryUpdate,
+    db: Session = Depends(get_db)
+):
+    category_query = db.query(models.Category).filter(models.Category.id == category_id)
+    category = category_query.first()
+
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category topilmadi"
+        )
+
+    category_query.update(updated_category.dict(), synchronize_session=False)
+    db.commit()
+
+    return category_query.first()
+
+
+# ─── DELETE ─────────────────────────────
+@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_category(category_id: int, db: Session = Depends(get_db)):
+    category_query = db.query(models.Category).filter(models.Category.id == category_id)
+    category = category_query.first()
+
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category topilmadi"
+        )
+
+    category_query.delete(synchronize_session=False)
+    db.commit()
+
+    return None
