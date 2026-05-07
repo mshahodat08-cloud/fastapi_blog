@@ -1,6 +1,11 @@
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 from datetime import datetime
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
+
+from app.models import Category
 
 
 # ─────────────────────────────
@@ -64,8 +69,10 @@ class PasswordChange(BaseModel):
 
 class PostBase(BaseModel):
     title: str
-    content: str
+    body: str
     published: bool = True
+    rating: Optional[int] = None 
+    category_id: Optional[int] = None
 
 
 class PostCreate(PostBase):
@@ -77,16 +84,31 @@ class PostUpdate(BaseModel):
     content: Optional[str] = None
     published: Optional[bool] = None
 
-
-class PostResponse(PostBase):
+class OwnerInfo(BaseModel):
     id: int
-    created_at: datetime
-    owner_id: int
+    username: str
+    email: EmailStr
 
     class Config:
         from_attributes = True
 
+class PostResponse(PostBase):
+    id: int
+    created_at: datetime
+    owner_id: Optional[int] = None
+    owner: Optional[OwnerInfo] = None   # ← YANGI
 
+    class Config:
+        from_attributes = True
+
+class PostOut(PostBase):
+    id: int
+    created_at: datetime
+    owner_id: int
+    category: Optional[Category] = None 
+
+    class Config:
+        from_attributes = True
 # ─────────────────────────────
 # 🟣 CATEGORY SCHEMAS
 # ─────────────────────────────
@@ -112,6 +134,12 @@ class CategoryResponse(CategoryBase):
         from_attributes = True
 
 
+class CategoryOut(CategoryBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 # ─────────────────────────────
 # 🔵 TODO (optional)
 # ─────────────────────────────
@@ -123,22 +151,6 @@ class Todo(BaseModel):
 
 
 
-class OwnerInfo(BaseModel):
-    id: int
-    username: str
-    email: EmailStr
-
-    class Config:
-        from_attributes = True
-
-class PostResponse(PostBase):
-    id: int
-    created_at: datetime
-    owner_id: Optional[int] = None
-    owner: Optional[OwnerInfo] = None   # ← YANGI
-
-    class Config:
-        from_attributes = True
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str

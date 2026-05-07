@@ -10,19 +10,18 @@ class User(Base):
     username = Column(String(100), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
     password = Column(String(255), nullable=False)
+    phone = Column(String(20), nullable=True)
+    is_active = Column(Boolean, server_default="TRUE", nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-
     posts = relationship("Post", back_populates="owner")
-
 
 class Category(Base):
     __tablename__ = "categories"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, nullable=False)
     name = Column(String(100), nullable=False, unique=True)
     description = Column(Text, nullable=True)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     posts = relationship("Post", back_populates="category")
 
 
@@ -31,12 +30,19 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True)
     title = Column(String(255), nullable=False)
-    content = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
     published = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    category = relationship("Category", back_populates="posts")
 
     owner = relationship("User", back_populates="posts")
     category = relationship("Category", back_populates="posts")
+    rating = Column(Integer, nullable=True)
+    updated_at = Column(
+    TIMESTAMP(timezone=True),
+    nullable=True,
+    onupdate=func.now() 
+)

@@ -3,16 +3,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 
-
 from .. import models, schemas
 from ..database import get_db
 from ..utils.hashing import verify_password
-from ..oauth2 import create_access_token, create_refresh_token
+from ..oauth2 import create_access_token, create_refresh_token, get_current_user
 from ..config import settings
-from .. import models, schemas
-from ..database import get_db
-from ..utils.hashing import verify_password, hash_password
-from ..oauth2 import get_current_user
 
 router = APIRouter(tags=["Authentication"])
 
@@ -26,19 +21,21 @@ def login(
     user = db.query(models.User).filter(
         models.User.email == user_credentials.username
     ).first()
-
     if not user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Noto'g'ri email yoki parol"
         )
-
     if not verify_password(user_credentials.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Noto'g'ri email yoki parol"
         )
-
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hisobingiz faol emas. Administrator bilan bog'laning."
+        )
     access_token = create_access_token(data={"user_id": user.id})
     refresh_token = create_refresh_token(data={"user_id": user.id})
 
@@ -51,20 +48,20 @@ def login(
 
 # ───────── REFRESH ─────────
 @router.post("/refresh")
-def refresh_token(request: schemas.RefreshTokenRequest):
+def refresh_token(request: schemas.RefreshTokenRequest, db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(
             request.refresh_token,
             settings.secret_key,
             algorithms=[settings.algorithm]
         )
-
         user_id = payload.get("user_id")
         token_type = payload.get("type")
-
         if user_id is None or token_type != "refresh":
             raise HTTPException(status_code=401, detail="Invalid refresh token")
-
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user or not user.is_active:
+             raise HTTPException(status_code=403, detail="Foydalanuvchi topilmadi yoki faol emas")
         new_access_token = create_access_token(
             data={"user_id": user_id}
         )
@@ -76,10 +73,12 @@ def refresh_token(request: schemas.RefreshTokenRequest):
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Token expired or invalid")
-    
 
+
+# ───────── LOGOUT ─────────
 @router.post("/logout")
-def logout():
+def logout(current_user: models.User = Depends(get_current_user)):
     return {
-        "message": "Logout successful. Tokenni client o‘chirishi kerak."
+        "status": "success",
+        "message": f"Foydalanuvchi {current_user.email} tizimdan chiqdi. Tokenni klitendan o'chiring."
     }
