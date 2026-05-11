@@ -14,6 +14,7 @@ class User(Base):
     is_active = Column(Boolean, server_default="TRUE", nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     posts = relationship("Post", back_populates="owner")
+    is_active = Column(Boolean, default=True)
 
 class Category(Base):
     __tablename__ = "categories"
@@ -34,7 +35,7 @@ class Post(Base):
     published = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     category = relationship("Category", back_populates="posts")
 
