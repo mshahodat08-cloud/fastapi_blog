@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
+from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
-from ..utils.hashing import hash_password, verify_password
-from ..oauth2 import get_current_user
+from ..utils.hashing import hash_password
 
 router = APIRouter(
     prefix="/users",
@@ -18,6 +17,7 @@ router = APIRouter(
     response_model=schemas.UserResponse
 )
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # Email allaqachon borligini tekshirish
     existing = db.query(models.User).filter(
         models.User.email == user.email
     ).first()
@@ -28,27 +28,24 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
             detail="Bu email allaqachon ro'yxatdan o'tgan"
         )
 
-    user_data = user.dict()
-    user_data["password"] = hash_password(user.password)
+    # Parolni xashlash
+    hashed = hash_password(user.password)
+    user.password = hashed
 
-    new_user = models.User(**user_data)
-
+    new_user = models.User(**user.model_dump())
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
     return new_user
 
-
-# ─── GET USER BY ID ───────────────────────────
+# ─── GET USER ─────────────────────────────────
 @router.get(
     "/{user_id}",
     response_model=schemas.UserResponse
 )
 def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(
-        models.User.id == user_id
-    ).first()
+    user = db.query(models.User).filter(models.User.id == user_id).first()
 
     if not user:
         raise HTTPException(
@@ -59,39 +56,19 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     return user
 
 
-# ─── GET CURRENT USER (/me) ───────────────────
+# ─── READ ALL (qidiruv + pagination) ─────────
 @router.get(
-    "/me",
-    response_model=schemas.UserResponse
+    "/",
+    response_model=List[schemas.PostResponse]
 )
-def get_me(
-    current_user: models.User = Depends(get_current_user)
-):
-    return current_user
-
-
-# ─── CHANGE PASSWORD (/me/password) ───────────
-@router.put("/me/password")
-def change_password(
-    passwords: schemas.PasswordChange,
+def get_all_posts(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    limit: int = 10,
+    skip: int = 0,
+    search: Optional[str] = ""
 ):
-    if not verify_password(passwords.old_password, current_user.password):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Eski parol noto‘g‘ri"
-        )
-    hashed_password = hash_password(passwords.new_password)
-    user_query = db.query(models.User).filter(
-        models.User.id == current_user.id
-    )
+    posts = db.query(models.Post).filter(
+        models.Post.title.contains(search)
+    ).limit(limit).offset(skip).all()
 
-    user_query.update(
-        {"password": hashed_password},
-        synchronize_session=False
-    )
-
-    db.commit()
-
-    return {"message": "Parol muvaffaqiyatli o‘zgartirildi"}
+    return posts

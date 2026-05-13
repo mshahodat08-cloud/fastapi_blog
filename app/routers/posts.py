@@ -23,8 +23,8 @@ def create_post(
     # ↑ Token tekshiriladi, user olinadi
 ):
     new_post = models.Post(
-        user_id=current_user.id,   # Kim yaratdi
-        **post.dict()
+        owner_id=current_user.id,   # Kim yaratdi
+        **post.model_dump()
     )
     db.add(new_post)
     db.commit()
@@ -95,7 +95,7 @@ def update_post(
         )
 
     post_query.update(
-        updated_post.dict(),
+        updated_post.model_dump(),
         synchronize_session=False
     )
     db.commit()

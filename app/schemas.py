@@ -69,7 +69,7 @@ class PasswordChange(BaseModel):
 
 class PostBase(BaseModel):
     title: str
-    body: str
+    content: str
     published: bool = True
     rating: Optional[int] = None 
     category_id: Optional[int] = None
@@ -101,14 +101,6 @@ class PostResponse(PostBase):
     class Config:
         from_attributes = True
 
-class PostOut(PostBase):
-    id: int
-    created_at: datetime
-    owner_id: int
-    category: Optional[Category] = None 
-
-    class Config:
-        from_attributes = True
 # ─────────────────────────────
 # 🟣 CATEGORY SCHEMAS
 # ─────────────────────────────
@@ -137,6 +129,15 @@ class CategoryResponse(CategoryBase):
 class CategoryOut(CategoryBase):
     id: int
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class PostOut(PostBase):
+    id: int
+    created_at: datetime
+    owner_id: int
+    category: Optional[CategoryOut] = None 
 
     class Config:
         from_attributes = True

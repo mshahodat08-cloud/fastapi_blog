@@ -31,7 +31,7 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True)
     title = Column(String(255), nullable=False)
-    body = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
     published = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
